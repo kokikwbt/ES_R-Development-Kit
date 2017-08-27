@@ -33,6 +33,8 @@
     uint32_t transMode;
     uint32_t accelRange;
     uint32_t gyroRange;
+    
+    NSString *databuff;
 }
 
 // =============================================================================
@@ -458,6 +460,19 @@
                 fullData.EogR = (int16_t)((buff[19] << 8) | buff[18]);
                 fullData.EogH = (int16_t)(fullData.EogL -fullData.EogR);
                 fullData.EogV = (int16_t)(0 - ((fullData.EogL + fullData.EogR) / 2));
+            {
+                NSDateFormatter *df = [[NSDateFormatter alloc] init];
+                [df setLocale:[[NSLocale alloc] initWithLocaleIdentifier:@"ja_JP"]];
+                [df setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
+                NSDate *now = [NSDate date];
+                NSString *strNow = [df stringFromDate:now];
+                databuff = [NSString stringWithFormat:
+                            @"%@%@,%u,%hu,%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd\n",
+                            databuff, strNow, fullData.Cnt, fullData.BattLv,
+                            fullData.AccX, fullData.AccY, fullData.AccZ,
+                            fullData.GyroX, fullData.GyroY, fullData.GyroZ,
+                            fullData.EogL, fullData.EogR, fullData.EogH, fullData.EogV];
+            }
                 [_delegate memeAcademicFullDataReceivedDelegate:(AcademicFullData*)fullData];
                 break;
             case 0x9A:
@@ -532,7 +547,7 @@
     libLog(@"Call : didConnectPeripheral");
     peripheral.delegate = self;
     Service_Flag = false;
-    
+    databuff = [NSString stringWithFormat: @"Datetime,Cnt,BattLv,AccX,AccY,AccZ,GyroX,GyroY,GyroZ,EogL,EogR,EogH,EogV\n"];
     // サービス探索開始
     //NSArray *services = [NSArray arrayWithObjects:[CBUUID UUIDWithString: @"180D"], nil];
     [peripheral discoverServices:nil];
@@ -574,6 +589,14 @@
         Measure_Flag = false;
         Service_Flag = false;
     }
+    // save data
+    NSDateFormatter *df =[[NSDateFormatter alloc] init];
+    [df setLocale:[[NSLocale alloc] initWithLocaleIdentifier:@"ja_JP"]];
+    [df setDateFormat:@"yyyyMMdd_HHmmss"];
+    NSDate *now = [NSDate date];
+    NSString *strNow = [df stringFromDate:now];
+    NSString *fname = [NSString stringWithFormat:@"/tmp/%@.csv", strNow];
+    [databuff writeToFile:fname atomically:YES encoding:NSUTF8StringEncoding error:NULL];
 }
 
 
